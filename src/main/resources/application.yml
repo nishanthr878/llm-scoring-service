@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: llm-scoring-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/llm_scoring
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  ai:
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: llama3-8b-8192
+          temperature: 0.0
+
+server:
+  port: 8080
+
+scoring:
+  thresholds:
+    faithfulness: 0.7
+    answer-relevance: 0.7
+    hallucination: 0.5
+  flags:
+    cost-spike-multiplier: 3.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
