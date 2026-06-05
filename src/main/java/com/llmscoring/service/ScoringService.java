@@ -1,7 +1,8 @@
-package com.llmscoring.api;
+package com.llmscoring.service;
 
 import com.llmscoring.dto.TraceRequest;
 import com.llmscoring.engine.FlagEngine;
+import com.llmscoring.enums.ScoringType;
 import com.llmscoring.model.ScoringResult;
 import com.llmscoring.repository.ScoringResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +20,14 @@ public class ScoringService {
     private final ScoringResultRepository repository;
 
     public ScoringResult evaluate(TraceRequest request) {
-        log.info("Evaluating trace — session={} model={}",
-                request.getSessionId(),
-                request.getModelName()
+        log.info("Evaluating single turn — session={} model={}",
+                request.getSessionId(), request.getModelName());
+
+        ScoringResult result = flagEngine.evaluate(
+                request.toContext(),
+                ScoringType.SINGLE_TURN
         );
 
-        ScoringResult result = flagEngine.evaluate(request);
         return repository.save(result);
     }
 

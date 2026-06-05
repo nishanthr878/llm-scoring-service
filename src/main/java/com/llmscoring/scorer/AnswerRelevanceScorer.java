@@ -1,15 +1,16 @@
 package com.llmscoring.scorer;
 
-import com.llmscoring.dto.TraceRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AnswerRelevanceScorer extends BaseScorer {
+public class AnswerRelevanceScorer extends BaseScorer implements Scorer {
 
     private final ChatClient chatClient;
 
@@ -26,31 +27,31 @@ public class AnswerRelevanceScorer extends BaseScorer {
             ANSWER:
             %s
             
-            Evaluate how well the answer addresses the question.
-            Ignore whether the answer is factually correct — only judge relevance.
-            
             Respond ONLY in this exact JSON format, nothing else:
             {
               "score": <float between 0.0 and 1.0>,
               "reasoning": "<one sentence explanation>"
             }
-            
-            Where 1.0 means perfectly relevant and 0.0 means completely irrelevant.
             """;
 
-    public ScorerResult score(TraceRequest request) {
-        String prompt = PROMPT_TEMPLATE.formatted(
-                request.getQuestion(),
-                request.getAnswer()
-        );
+    @Override
+    public String name() {
+        return "answerRelevance";
+    }
+
+    @Override
+    public ScorerResult score(Map<String, Object> context) {
+        String question = (String) context.get("question");
+        String answer = (String) context.get("answer");
+
+        String prompt = PROMPT_TEMPLATE.formatted(question, answer);
 
         try {
             String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
-
-            return parseResponse(response, "AnswerRelevanceScorer");
+            return parseResponse(response, name());
         } catch (Exception e) {
             log.error("AnswerRelevanceScorer failed", e);
             return ScorerResult.error("AnswerRelevanceScorer failed: " + e.getMessage());

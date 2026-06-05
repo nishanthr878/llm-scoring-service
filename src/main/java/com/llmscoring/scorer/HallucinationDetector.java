@@ -1,15 +1,17 @@
 package com.llmscoring.scorer;
 
-import com.llmscoring.dto.TraceRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class HallucinationDetector extends BaseScorer {
+public class HallucinationDetector extends BaseScorer implements Scorer {
 
     private final ChatClient chatClient;
 
@@ -20,10 +22,8 @@ public class HallucinationDetector extends BaseScorer {
             - Names, dates, or numbers not present in the context
             - URLs or citations that don't exist in the context
             - Events or claims directly contradicted by the context
-            - Invented details presented as facts
             
             General world knowledge is NOT hallucination.
-            Only flag specific invented claims that contradict or go beyond the context.
             
             QUESTION:
             %s
@@ -34,8 +34,6 @@ public class HallucinationDetector extends BaseScorer {
             ANSWER:
             %s
             
-            Evaluate the degree of hallucination in the answer.
-            
             Respond ONLY in this exact JSON format, nothing else:
             {
               "score": <float between 0.0 and 1.0>,
@@ -45,21 +43,26 @@ public class HallucinationDetector extends BaseScorer {
             Where 0.0 means no hallucination and 1.0 means severe hallucination.
             """;
 
-    public ScorerResult score(TraceRequest request) {
-        String context = String.join("\n---\n", request.getRetrievedChunks());
-        String prompt = PROMPT_TEMPLATE.formatted(
-                request.getQuestion(),
-                context,
-                request.getAnswer()
-        );
+    @Override
+    public String name() {
+        return "hallucination";
+    }
+
+    @Override
+    public ScorerResult score(Map<String, Object> context) {
+        String question = (String) context.get("question");
+        String answer = (String) context.get("answer");
+        List<String> chunks = (List<String>) context.get("retrievedChunks");
+        String joinedContext = String.join("\n---\n", chunks);
+
+        String prompt = PROMPT_TEMPLATE.formatted(question, joinedContext, answer);
 
         try {
             String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
-
-            return parseResponse(response, "HallucinationDetector");
+            return parseResponse(response, name());
         } catch (Exception e) {
             log.error("HallucinationDetector failed", e);
             return ScorerResult.error("HallucinationDetector failed: " + e.getMessage());

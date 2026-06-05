@@ -1,11 +1,15 @@
 package com.llmscoring.model;
 
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Type;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Map;
+
+import com.llmscoring.enums.ScoringType;
 
 @Data
 @NoArgsConstructor
@@ -21,42 +25,35 @@ public class ScoringResult {
     private String modelName;
     private String promptVersion;
 
-    @Column(columnDefinition = "TEXT")
-    private String question;
+    @Enumerated(EnumType.STRING)
+    private ScoringType type;
 
-    @Column(columnDefinition = "TEXT")
-    private String answer;
+    // All scores stored as JSONB — flexible, no hardcoded fields
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Double> scores;
 
-    // Scores (0.0 to 1.0)
-    private Double faithfulnessScore;
-    private Double answerRelevanceScore;
-    private Double hallucinationScore;
+    // All reasoning stored as JSONB
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, String> reasoning;
 
-    // Reasoning from LLM
-    @Column(columnDefinition = "TEXT")
-    private String faithfulnessReasoning;
+    // All pass/fail stored as JSONB
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Boolean> passed;
 
-    @Column(columnDefinition = "TEXT")
-    private String answerRelevanceReasoning;
-
-    @Column(columnDefinition = "TEXT")
-    private String hallucinationReasoning;
-
-    // Pass/Fail flags
-    private Boolean faithfulnessPassed;
-    private Boolean answerRelevancePassed;
-    private Boolean hallucinationPassed;
     private Boolean overallPassed;
+
+    @Column(columnDefinition = "TEXT")
+    private String flagReasons;
 
     // System metrics
     private Long latencyMs;
     private Integer inputTokens;
     private Integer outputTokens;
     private Double costUsd;
-
-    // Flag reasons if something failed
-    @Column(columnDefinition = "TEXT")
-    private String flagReasons;
+    private Integer turnCount;
 
     private Instant scoredAt;
 

@@ -1,4 +1,4 @@
-package com.llmscoring.api;
+package com.llmscoring.controller;
 
 import com.llmscoring.dto.TraceRequest;
 import com.llmscoring.model.ScoringResult;
@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.llmscoring.service.ScoringService;
 
 import java.util.List;
 
