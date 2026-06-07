@@ -57,6 +57,10 @@ public class ScoringResult {
 
     private Instant scoredAt;
 
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition =  "jsonb")
+    private Map<String, Object> details;
+
     @PrePersist
     public void prePersist() {
         this.scoredAt = Instant.now();
