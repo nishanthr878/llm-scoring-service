@@ -69,6 +69,7 @@ public class FlagEngine {
         };
 
         List<Scorer> scorers = scorerRegistry.get(scorerNames);
+        Map<String, Object> details = new HashMap<>();
 
         // Run all scorers concurrently on virtual threads
         long start = System.currentTimeMillis();
@@ -107,6 +108,10 @@ public class FlagEngine {
 
             passed.put(scorerName, scorerPassed);
 
+            if(scorerResult.getDetails() != null) {
+                details.put(scorerName, scorerResult.getDetails());
+            }
+
             if (!scorerPassed) {
                 flagReasons.add(String.format(
                         "%s failed: %.2f — %s",
@@ -128,6 +133,7 @@ public class FlagEngine {
         result.setPassed(passed);
         result.setOverallPassed(flagReasons.isEmpty());
         result.setFlagReasons(flagReasons.isEmpty() ? null : String.join(" | ", flagReasons));
+        result.setDetails(details);
 
         log.info("Evaluation complete — session={} type={} overall={} flags={}",
                 result.getSessionId(), type, result.getOverallPassed(), flagReasons.size());
