@@ -1,8 +1,6 @@
 package com.llmscoring.service;
 
-import com.llmscoring.dto.ConversationRequest;
-import com.llmscoring.dto.ScenarioRequest;
-import com.llmscoring.dto.TraceRequest;
+import com.llmscoring.dto.*;
 import com.llmscoring.engine.FlagEngine;
 import com.llmscoring.enums.ScoringType;
 import com.llmscoring.model.ScoringResult;
@@ -10,6 +8,11 @@ import com.llmscoring.repository.ScoringResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.llmscoring.model.Scenario;
+import com.llmscoring.service.ScenarioService;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import java.util.List;
 
@@ -20,6 +23,7 @@ public class ScoringService {
 
     private final FlagEngine flagEngine;
     private final ScoringResultRepository repository;
+    private final ScenarioService scenarioService;
 
     public ScoringResult evaluate(TraceRequest request) {
         log.info("Evaluating single turn — session={} model={}",
@@ -65,6 +69,40 @@ public class ScoringService {
                 request.toContext(),
                 ScoringType.SCENARIO
         );
+        return repository.save(result);
+    }
+
+
+    public ScoringResult evaluateWithScenario(String scenarioName,
+                                              ScenarioEvaluationRequest request) {
+        Scenario scenario = scenarioService.getByName(scenarioName);
+
+        String formattedConversation = request.getMessages().stream()
+                .map(m -> m.getRole().toUpperCase() + ": " + m.getContent())
+                .collect(Collectors.joining("\n\n"));
+
+        Map<String, Object> context = new HashMap<>();
+        context.put("scenarioName", scenario.getName());
+        context.put("policy", scenario.getPolicy());
+        context.put("expectedBehaviors", scenario.getExpectedBehaviors());
+        context.put("formattedConversation", formattedConversation);
+        context.put("messages", request.getMessages());
+        context.put("sessionId", request.getSessionId());
+        context.put("modelName", request.getModelName() != null
+                ? request.getModelName() : "unknown");
+        context.put("promptVersion", "v1.0");
+        context.put("turnCount", request.getMessages().size());
+        context.put("latencyMs", null);
+        context.put("inputTokens", null);
+        context.put("outputTokens", null);
+        context.put("costUsd", null);
+
+        ScoringResult result = flagEngine.evaluateWithScorers(
+                context,
+                ScoringType.SCENARIO,
+                scenario.getScorerNames()
+        );
+
         return repository.save(result);
     }
 }

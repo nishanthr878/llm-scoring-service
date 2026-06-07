@@ -7,6 +7,7 @@ import com.llmscoring.dto.TraceRequest;
 import com.llmscoring.model.ScoringResult;
 import com.llmscoring.service.ScoringService;
 import com.llmscoring.util.ChatLogParser;
+import com.llmscoring.dto.ScenarioEvaluationRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,5 +74,15 @@ public class ScoringController {
     public ResponseEntity<ScoringResult> evaluateScenario(
             @Valid @RequestBody ScenarioRequest request) {
         return ResponseEntity.ok(scoringService.evaluateScenario(request));
+    }
+
+    @PostMapping("/evaluate/scenario/{scenarioName}")
+    public ResponseEntity<ScoringResult> evaluateWithScenario(
+            @PathVariable String scenarioName,
+            @RequestBody ScenarioEvaluationRequest request) {
+        return ResponseEntity.ok(
+                scoringService.evaluateWithScenario(
+                        scenarioName, request
+                ));
     }
 }
