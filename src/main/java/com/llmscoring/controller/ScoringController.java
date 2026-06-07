@@ -2,6 +2,7 @@ package com.llmscoring.controller;
 
 import com.llmscoring.dto.ConversationRequest;
 import com.llmscoring.dto.RawConversationRequest;
+import com.llmscoring.dto.ScenarioRequest;
 import com.llmscoring.dto.TraceRequest;
 import com.llmscoring.model.ScoringResult;
 import com.llmscoring.service.ScoringService;
@@ -65,5 +66,12 @@ public class ScoringController {
                 request.getPromptVersion()
         );
         return ResponseEntity.ok(scoringService.evaluateConversation(parsed));
+    }
+
+
+    @PostMapping("/evaluate/scenario")
+    public ResponseEntity<ScoringResult> evaluateScenario(
+            @Valid @RequestBody ScenarioRequest request) {
+        return ResponseEntity.ok(scoringService.evaluateScenario(request));
     }
 }
