@@ -42,6 +42,11 @@ public class FlagEngine {
             "conversationFaithfulness"
     );
 
+    private static final List<String> SCENARIO_SCORERS = List.of(
+            "policyCompliance",
+            "expectedBehavior"
+    );
+
     public ScoringResult evaluate(Map<String, Object> context, ScoringType type) {
         ScoringResult result = new ScoringResult();
 
@@ -57,9 +62,11 @@ public class FlagEngine {
         result.setTurnCount((Integer) context.getOrDefault("turnCount", 1));
 
         // Pick scorers based on type
-        List<String> scorerNames = type == ScoringType.SINGLE_TURN
-                ? SINGLE_TURN_SCORERS
-                : CONVERSATION_SCORERS;
+        List<String> scorerNames = switch (type) {
+            case SINGLE_TURN -> SINGLE_TURN_SCORERS;
+            case CONVERSATION -> CONVERSATION_SCORERS;
+            case SCENARIO -> SCENARIO_SCORERS;
+        };
 
         List<Scorer> scorers = scorerRegistry.get(scorerNames);
 
