@@ -1,6 +1,7 @@
 package com.llmscoring.service;
 
 import com.llmscoring.dto.ConversationRequest;
+import com.llmscoring.dto.ScenarioRequest;
 import com.llmscoring.dto.TraceRequest;
 import com.llmscoring.engine.FlagEngine;
 import com.llmscoring.enums.ScoringType;
@@ -55,5 +56,15 @@ public class ScoringService {
     public ScoringResult getById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("ScoringResult not found: " + id));
+    }
+
+    public ScoringResult evaluateScenario(ScenarioRequest request) {
+        log.info("Evaluating scenario — name={} session={}",
+                request.getScenarioName(), request.getSessionId());
+        ScoringResult result = flagEngine.evaluate(
+                request.toContext(),
+                ScoringType.SCENARIO
+        );
+        return repository.save(result);
     }
 }
