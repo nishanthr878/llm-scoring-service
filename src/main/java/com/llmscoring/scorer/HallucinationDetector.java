@@ -58,10 +58,7 @@ public class HallucinationDetector extends BaseScorer implements Scorer {
         String prompt = PROMPT_TEMPLATE.formatted(question, joinedContext, answer);
 
         try {
-            String response = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            String response = callWithRetry(chatClient, prompt, name());
             return parseResponse(response, name());
         } catch (Exception e) {
             log.error("HallucinationDetector failed", e);

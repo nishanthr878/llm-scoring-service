@@ -58,7 +58,10 @@ public class FlagEngine {
         result.setReasoning(output.reasoning);
         result.setPassed(output.passed);
         result.setDetails(output.details.isEmpty() ? null : output.details);
-        result.setOverallPassed(output.flagReasons.isEmpty());
+        // If ALL scorers errored — inconclusive, don't mark as failed
+        // If SOME scorers errored — pass based on scorers that succeeded
+        boolean allErrored = output.scorerErrors.size() == scorerNames.size();
+        result.setOverallPassed(allErrored ? null : output.flagReasons.isEmpty());
         result.setFlagReasons(output.flagReasons.isEmpty()
                 ? null : String.join(" | ", output.flagReasons));
 
@@ -112,11 +115,19 @@ public class FlagEngine {
             output.scores.put(scorerName, scorerResult.getScore());
             output.reasoning.put(scorerName, scorerResult.getReasoning());
 
-            boolean scorerPassed = scorerResult.isSuccess() && (
-                    scorerName.equals("hallucination")
-                            ? scorerResult.getScore() <= thresholds.getHallucination()
-                            : scorerResult.getScore() >= thresholds.getFaithfulness()
-            );
+            // Scorer infrastructure failed — don't penalize the bot
+            if (!scorerResult.isSuccess()) {
+                log.warn("Scorer {} failed with infrastructure error: {}",
+                        scorerName, scorerResult.getReasoning());
+                output.passed.put(scorerName, null); // null = inconclusive
+                output.reasoning.put(scorerName, "SCORER_ERROR: " + scorerResult.getReasoning());
+                output.scorerErrors.add(scorerName);
+                continue;
+            }
+
+            boolean scorerPassed = scorerName.equals("hallucination")
+                    ? scorerResult.getScore() <= thresholds.getHallucination()
+                    : scorerResult.getScore() >= thresholds.getFaithfulness();
 
             output.passed.put(scorerName, scorerPassed);
 
@@ -148,5 +159,6 @@ public class FlagEngine {
         Map<String, Boolean> passed = new HashMap<>();
         Map<String, Object> details = new HashMap<>();
         List<String> flagReasons = new ArrayList<>();
+        List<String> scorerErrors = new ArrayList<>();
     }
 }

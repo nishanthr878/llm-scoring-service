@@ -58,10 +58,7 @@ public class PolicyComplianceScorer extends BaseScorer implements Scorer {
         String prompt = PROMPT_TEMPLATE.formatted(formattedPolicy, conversation);
 
         try {
-            String response = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            String response = callWithRetry(chatClient, prompt, name());
             return parseResponse(response, name());
         } catch (Exception e) {
             log.error("PolicyComplianceScorer failed", e);

@@ -55,10 +55,7 @@ public class ContextRetentionScorer extends BaseScorer implements Scorer {
         String prompt = PROMPT_TEMPLATE.formatted(conversation, chunks);
 
         try {
-            String response = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            String response = callWithRetry(chatClient, prompt, name());
             return parseResponse(response, name());
         } catch (Exception e) {
             log.error("ContextRetentionScorer failed", e);

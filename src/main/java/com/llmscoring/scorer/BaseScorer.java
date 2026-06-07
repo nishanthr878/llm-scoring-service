@@ -1,6 +1,7 @@
 package com.llmscoring.scorer;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
 
 @Slf4j
 public abstract class BaseScorer {
@@ -28,5 +29,29 @@ public abstract class BaseScorer {
             log.warn("{} failed to parse response: {}", scorerName, response);
             return ScorerResult.error("Parse failed: " + response);
         }
+    }
+
+    protected String callWithRetry(ChatClient chatClient, String prompt, String scorerName) {
+        int maxRetries = 2;
+        Exception lastException = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return chatClient.prompt()
+                        .user(prompt)
+                        .call()
+                        .content();
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("{} attempt {}/{} failed: {}", scorerName, attempt, maxRetries, e.getMessage());
+                if (attempt < maxRetries) {
+                    try { Thread.sleep(500L * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        throw new RuntimeException("All retries failed for " + scorerName, lastException);
     }
 }

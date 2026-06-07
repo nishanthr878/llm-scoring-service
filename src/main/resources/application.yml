@@ -28,6 +28,8 @@ spring:
         options:
           model: llama-3.3-70b-versatile
           temperature: 0.0
+      connection-timeout: 10s
+      read-timeout: 30s
 
 server:
   port: 8080
