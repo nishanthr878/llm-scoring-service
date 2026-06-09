@@ -1,8 +1,7 @@
 # LLM Scoring Service
 
-Open source evaluation and observability platform for AI agents and bots.
+Evaluation and observability platform for AI agents and bots.
 
-![License](https://img.shields.io/badge/license-MIT-green)
 ![Java](https://img.shields.io/badge/Java-21-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-green)
 
@@ -285,6 +284,4 @@ Open [http://localhost:3000](http://localhost:3000)
 - [Java SDK](https://github.com/nishanthr878/llm-scoring-service-java-sdk)
 - [Python SDK](https://github.com/nishanthr878/llm-scoring-service-python-sdk)
 
-## License
 
-MIT
