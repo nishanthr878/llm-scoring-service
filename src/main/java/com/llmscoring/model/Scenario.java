@@ -8,6 +8,7 @@ import org.hibernate.annotations.Type;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -42,6 +43,20 @@ public class Scenario {
 
     // Flag if any score drops below this
     private Double alertThreshold;
+
+    // PII detection config
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private List<String> piiTypesToDetect; // ["EMAIL", "PHONE", "CREDIT_CARD"]
+
+    private Boolean piiDetectionEnabled;
+
+    // Custom pattern config
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private List<Map<String, String>> customPatterns;// [{"name": "competitor", "pattern": "CompetitorX|Y", "severity": "HIGH"}]
+
+    private Boolean turnLevelScoringEnabled;
 
     private Boolean active;
 

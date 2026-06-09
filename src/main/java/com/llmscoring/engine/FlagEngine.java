@@ -10,11 +10,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -34,7 +32,16 @@ public class FlagEngine {
     private static final List<String> CONVERSATION_SCORERS = List.of(
             "consistency", "contextRetention", "conversationFaithfulness");
 
+    private final Map<String, ScorerResult> lastScorerResults = new ConcurrentHashMap<>();
+
+    public Map<String, ScorerResult> getLastScorerResults() {
+        return Collections.unmodifiableMap(lastScorerResults);
+    }
+
+
+
     // --- Public API ---
+
 
     public ScoringResult evaluate(Map<String, Object> context, ScoringType type) {
         List<String> scorerNames = switch (type) {
@@ -92,6 +99,7 @@ public class FlagEngine {
             List<String> scorerNames,
             Map<String, Object> context) {
 
+
         List<Scorer> scorers = scorerRegistry.get(scorerNames);
 
         // Fire all scorers concurrently
@@ -141,6 +149,13 @@ public class FlagEngine {
                         scorerResult.getReasoning()));
             }
         }
+
+        // Store for external access
+        this.lastScorerResults.clear();
+        for (Map.Entry<String, CompletableFuture<ScorerResult>> entry : futures.entrySet()) {
+            this.lastScorerResults.put(entry.getKey(), entry.getValue().join());
+        }
+
 
         // Cost spike check
         Double costUsd = (Double) context.get("costUsd");

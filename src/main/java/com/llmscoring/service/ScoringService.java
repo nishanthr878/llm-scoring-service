@@ -3,8 +3,11 @@ package com.llmscoring.service;
 import com.llmscoring.dto.*;
 import com.llmscoring.engine.FlagEngine;
 import com.llmscoring.enums.ScoringType;
+import com.llmscoring.enums.Severity;
 import com.llmscoring.model.ScoringResult;
+import com.llmscoring.model.TurnFlag;
 import com.llmscoring.repository.ScoringResultRepository;
+import com.llmscoring.scorer.ScorerResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,25 +27,30 @@ public class ScoringService {
     private final FlagEngine flagEngine;
     private final ScoringResultRepository repository;
     private final ScenarioService scenarioService;
+    private final TurnFlagService turnFlagService;
+    private final SseEmitterService sseEmitterService;
 
     public ScoringResult evaluate(TraceRequest request) {
         log.info("Evaluating single turn — session={} model={}",
                 request.getSessionId(), request.getModelName());
-        ScoringResult result = flagEngine.evaluate(
-                request.toContext(),
-                ScoringType.SINGLE_TURN
-        );
-        return repository.save(result);
+
+
+        Map<String, Object> context = request.toContext();
+        ScoringResult result = flagEngine.evaluate(context, ScoringType.SINGLE_TURN);
+        ScoringResult saved = repository.save(result);
+        processFlags(saved, flagEngine.getLastScorerResults(), context);
+
+        return saved;
     }
 
     public ScoringResult evaluateConversation(ConversationRequest request) {
         log.info("Evaluating conversation — session={} turns={}",
                 request.getSessionId(), request.getMessages().size());
-        ScoringResult result = flagEngine.evaluate(
-                request.toContext(),
-                ScoringType.CONVERSATION
-        );
-        return repository.save(result);
+        Map<String, Object> context = request.toContext();
+        ScoringResult result = flagEngine.evaluate(context, ScoringType.CONVERSATION);
+        ScoringResult saved = repository.save(result);
+        processFlags(saved, flagEngine.getLastScorerResults(), context);
+        return saved;
     }
 
     public List<ScoringResult> getAll() {
@@ -96,6 +104,11 @@ public class ScoringService {
         context.put("inputTokens", null);
         context.put("outputTokens", null);
         context.put("costUsd", null);
+        context.put("piiTypesToDetect", scenario.getPiiTypesToDetect() != null
+                ? scenario.getPiiTypesToDetect()
+                : List.of("EMAIL", "PHONE", "CREDIT_CARD", "SSN", "API_KEY"));
+        context.put("customPatterns", scenario.getCustomPatterns());
+        context.put("retrievedChunks", List.of()); // empty if not provided
 
         ScoringResult result = flagEngine.evaluateWithScorers(
                 context,
@@ -103,6 +116,27 @@ public class ScoringService {
                 scenario.getScorerNames()
         );
 
-        return repository.save(result);
+        ScoringResult saved = repository.save(result);
+        processFlags(saved, flagEngine.getLastScorerResults(), context);
+        return saved;
     }
+
+
+
+    private void processFlags(ScoringResult result,
+                              Map<String, ScorerResult> scorerResults,
+                              Map<String, Object> context) {
+        try {
+            List<TurnFlag> flags = turnFlagService.processFlags(result, scorerResults, context);
+            sseEmitterService.pushScoringResult(result, flags);
+            flags.stream()
+                    .filter(f -> f.getSeverity().ordinal() >= Severity.HIGH.ordinal())
+                    .forEach(sseEmitterService::pushTurnFlag);
+        } catch (Exception e) {
+            log.error("Flag processing failed", e);
+        }
+    }
+
+
+
 }
