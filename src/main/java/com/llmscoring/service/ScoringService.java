@@ -130,30 +130,31 @@ public class ScoringService {
         try {
             List<TurnFlag> flags = turnFlagService.processFlags(result, scorerResults, context);
 
-            // Store conversation with full messages
-            List<Map<String, Object>> messages = (List<Map<String, Object>>) context.get("messages");
-            String scenarioName = (String) context.getOrDefault("scenarioName", "unknown");
-
-            // Convert ChatMessage objects to maps if needed
+            // Handle both ChatMessage objects and raw Maps
             List<Map<String, Object>> messageMaps = null;
-            if (messages != null) {
-                messageMaps = messages.stream()
+            Object rawMessages = context.get("messages");
+
+            if (rawMessages instanceof List<?> list && !list.isEmpty()) {
+                messageMaps = list.stream()
                         .map(m -> {
                             if (m instanceof com.llmscoring.dto.ChatMessage cm) {
                                 return Map.<String, Object>of(
                                         "role", cm.getRole(),
                                         "content", cm.getContent()
                                 );
+                            } else if (m instanceof Map<?,?> map) {
+                                return Map.<String, Object>of(
+                                        "role", String.valueOf(map.get("role")),
+                                        "content", String.valueOf(map.get("content"))
+                                );
                             }
-                            return m;
+                            return Map.<String, Object>of("role", "unknown", "content", "");
                         })
                         .collect(java.util.stream.Collectors.toList());
             }
 
+            String scenarioName = (String) context.getOrDefault("scenarioName", "unknown");
             conversationService.store(result, messageMaps, scenarioName, flags);
-
-
-
 
             sseEmitterService.pushScoringResult(result, flags);
             flags.stream()
