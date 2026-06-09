@@ -29,6 +29,7 @@ public class ScoringService {
     private final ScenarioService scenarioService;
     private final TurnFlagService turnFlagService;
     private final SseEmitterService sseEmitterService;
+    private final ConversationService conversationService;
 
     public ScoringResult evaluate(TraceRequest request) {
         log.info("Evaluating single turn — session={} model={}",
@@ -128,6 +129,32 @@ public class ScoringService {
                               Map<String, Object> context) {
         try {
             List<TurnFlag> flags = turnFlagService.processFlags(result, scorerResults, context);
+
+            // Store conversation with full messages
+            List<Map<String, Object>> messages = (List<Map<String, Object>>) context.get("messages");
+            String scenarioName = (String) context.getOrDefault("scenarioName", "unknown");
+
+            // Convert ChatMessage objects to maps if needed
+            List<Map<String, Object>> messageMaps = null;
+            if (messages != null) {
+                messageMaps = messages.stream()
+                        .map(m -> {
+                            if (m instanceof com.llmscoring.dto.ChatMessage cm) {
+                                return Map.<String, Object>of(
+                                        "role", cm.getRole(),
+                                        "content", cm.getContent()
+                                );
+                            }
+                            return m;
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+            }
+
+            conversationService.store(result, messageMaps, scenarioName, flags);
+
+
+
+
             sseEmitterService.pushScoringResult(result, flags);
             flags.stream()
                     .filter(f -> f.getSeverity().ordinal() >= Severity.HIGH.ordinal())
