@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.llmscoring.config.KafkaConfig;
 import com.llmscoring.dto.*;
+import com.llmscoring.model.ScoringResult;
 import com.llmscoring.transformer.FieldMappingTransformer;
 import com.llmscoring.transformer.MessageTransformer;
 import com.llmscoring.transformer.TransformerRegistry;
@@ -25,6 +26,7 @@ public class IngestService {
     private final TransformerRegistry transformerRegistry;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final ScoringService scoringService;
 
     public String ingest(IngestRequest request) {
         // 1. Get the right transformer
@@ -131,5 +133,46 @@ public class IngestService {
         public List<ChatMessage> transform(JsonNode messagesNode) {
             return transformer.transform(messagesNode, mapping);
         }
+    }
+
+    public ScoringResult ingestSync(IngestRequest request) {
+        // Transform messages
+        MessageTransformer transformer = resolveTransformer(request);
+
+        if(!transformer.supports(request.getMessages())) {
+            throw new IllegalArgumentException(
+                    "Messages format not supported by transforemer: " + request.getFormat()
+            );
+        }
+
+        List<ChatMessage> messages = transform(transformer, request);
+
+        if(messages.isEmpty()) {
+            throw new IllegalArgumentException("No valid messages after transformation");
+        }
+
+        // Build retrived chunks
+        List<String> chunks = new ArrayList<>();
+        if(request.getRetrievedChunks() != null) {
+            for (JsonNode chunk : request.getRetrievedChunks()) {
+                chunks.add(chunk.asText());
+            }
+        }
+
+        // Route to scoring service directly
+        if (request.getScenarioName() != null && !request.getScenarioName().isBlank()) {
+            ScenarioEvaluationRequest evalRequest = new ScenarioEvaluationRequest();
+            evalRequest.setMessages(messages);
+            evalRequest.setSessionId(request.getSessionId());
+            evalRequest.setModelName(request.getModelName());
+            return scoringService.evaluateWithScenario(request.getScenarioName(), evalRequest);
+        }
+
+        ConversationRequest convRequest = new ConversationRequest();
+        convRequest.setMessages(messages);
+        convRequest.setRetrievedChunks(chunks);
+        convRequest.setSessionId(request.getSessionId());
+        convRequest.setModelName(request.getModelName());
+        return scoringService.evaluateConversation(convRequest);
     }
 }

@@ -133,9 +133,13 @@ public class FlagEngine {
                 continue;
             }
 
-            boolean scorerPassed = scorerName.equals("hallucination")
-                    ? scorerResult.getScore() <= thresholds.getHallucination()
-                    : scorerResult.getScore() >= thresholds.getFaithfulness();
+            boolean isInverted = scorerName.equals("hallucination") || scorerName.equals("turnHallucination");
+
+            boolean scorerPassed = scorerResult.isSuccess() && (
+                    isInverted
+                            ? scorerResult.getScore() <= thresholds.getHallucination()
+                            : scorerResult.getScore() >= thresholds.getFaithfulness()
+            );
 
             output.passed.put(scorerName, scorerPassed);
 

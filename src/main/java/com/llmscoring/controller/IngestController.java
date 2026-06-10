@@ -1,6 +1,7 @@
 package com.llmscoring.controller;
 
 import com.llmscoring.dto.IngestRequest;
+import com.llmscoring.model.ScoringResult;
 import com.llmscoring.service.IngestService;
 import com.llmscoring.transformer.TransformerRegistry;
 import jakarta.validation.Valid;
@@ -21,20 +22,24 @@ public class IngestController {
     private final IngestService ingestService;
     private final TransformerRegistry transformerRegistry;
 
-    // Main ingest endpoint — accepts any format
     @PostMapping("/ingest")
-    public ResponseEntity<Map<String, String>> ingest(
-            @Valid @RequestBody IngestRequest request) {
+    public ResponseEntity<Object> ingest(
+            @Valid @RequestBody IngestRequest request,
+            @RequestParam(defaultValue = "false") boolean sync) {
+
+        if (sync) {
+            ScoringResult result = ingestService.ingestSync(request);
+            return ResponseEntity.ok(result);
+        }
+
         String eventId = ingestService.ingest(request);
-        return ResponseEntity.accepted()
-                .body(Map.of(
-                        "eventId", eventId,
-                        "status", "accepted",
-                        "message", "Event queued for scoring"
-                ));
+        return ResponseEntity.accepted().body(Map.of(
+                "eventId", eventId,
+                "status", "accepted",
+                "message", "Event queued for scoring"
+        ));
     }
 
-    // List available formats — useful for UI dropdown
     @GetMapping("/formats")
     public ResponseEntity<List<String>> getAvailableFormats() {
         return ResponseEntity.ok(transformerRegistry.getAvailableFormats());
