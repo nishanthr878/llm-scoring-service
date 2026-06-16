@@ -1,5 +1,9 @@
 # LLM Scoring Service
 
+## Live Demo
+
+[demo.nishanthraj.in](https://demo.nishanthraj.in)
+
 Evaluation and observability platform for AI agents and bots.
 
 ![Java](https://img.shields.io/badge/Java-21-blue)
